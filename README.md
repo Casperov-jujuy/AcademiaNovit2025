@@ -1,6 +1,6 @@
 # Academia Novit 2025
 
-## Requisitos
+## REQUISITOS
 
 Antes de ejecutar el proyecto, asegúrate de cumplir con los siguientes requisitos:
 
