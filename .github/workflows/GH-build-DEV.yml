@@ -1,0 +1,80 @@
+# nombre del pipeline
+name: GH-build-DEV
+
+# eventos disparadores 
+on:
+  push:
+    branches: [ "main" ] # eventos disparadores en branch main
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04 # siempre explicitar la version del Sistema Operativo
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+         dotnet-version: | # 8.0.x son versiones LTS
+            8.0.x  
+            9.0.x
+            
+    - name: Restore dependencies
+      run: dotnet restore
+      
+    - name: Build
+      run: dotnet build --no-restore
+      
+    - name: Test
+      run: dotnet test --no-build --verbosity normal
+      
+    - name: Read Secrets
+      run: echo "Secret usuario:" ${{ secrets.USUARIO }}
+      
+    - name: Publish Application
+      run: dotnet publish AcademiaNovit/AcademiaNovit.csproj -c Release -o ./publish
+      
+    - name: Send Email Notification
+      if: always()
+      uses: dawidd6/action-send-mail@v3
+      with:
+        server_address: app.debugmail.io
+        server_port: 25
+        username: ${{ secrets.DEBUGMAIL_LOGIN }}
+        password: ${{ secrets.DEBUGMAIL_PASSWORD }}
+        subject: 'CI/CD Pipeline Status - ${{ job.status }} - ${{ github.repository }}'
+        body: |
+          🚀 Pipeline Execution Report
+          
+          Status: ${{ job.status }}
+          Repository: ${{ github.repository }}
+          Branch: ${{ github.ref_name }}
+          Commit: ${{ github.sha }}
+          Workflow: ${{ github.workflow }}
+          Run ID: ${{ github.run_id }}
+          
+          📋 Job Details:
+          - Build Status: ${{ job.status }}
+          - Triggered by: ${{ github.event_name }}
+          - Author: ${{ github.actor }}
+          - Timestamp: ${{ github.event.head_commit.timestamp }}
+          
+          🔗 View full details: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          
+          💡 This notification was sent automatically by GitHub Actions using debugmail.io
+        to: ${{ secrets.NOTIFICATION_EMAIL }}
+        from: ${{ secrets.EMAIL_USERNAME }}
+        
+    - name: Upload build artifacts
+      if: success()
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-artifacts-${{ github.run_number }}
+        path: |
+          ./publish/
+          bin/
+        retention-days: 30
